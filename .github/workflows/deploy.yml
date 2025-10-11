@@ -12,22 +12,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the repo
+      # Checkout the repo to ensure we have access to the code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install Python
+      # Install Python 3.11 so we can run tests
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
 
-      # Installs dependencies
+      # Installs dependencies for testing
       - name: Install dependencies
         run: |
           pip install pandas matplotlib seaborn azure-storage-blob
 
-      # Runs lint or basic test
+      # Runs basic test that ensures the code runs before building the Docker image
       - name: Run Python syntax check
         run: |
           python -m py_compile data_analysis.py
@@ -38,7 +38,7 @@ jobs:
         run: |
           docker build -t diet-analysis .
 
-      # Runs a Docker container for verification
+      # Runs a Docker container for verification that the image works
       - name: Run Docker container simulation
         run: |
           docker run --rm diet-analysis
