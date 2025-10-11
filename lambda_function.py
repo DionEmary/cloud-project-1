@@ -10,36 +10,39 @@ def process_nutritional_data_from_azurite():
         "AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;DefaultEndpointsProtocol=http;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;"
     )
 
-    # Connects to my Local Bloc Storage using the Connection String
     blob_service_client = BlobServiceClient.from_connection_string(connect_str)
 
-    # Tge container and blob names for download
     container_name = "datasets"
     blob_name = "All_Diets.csv"
 
-    # 
     container_client = blob_service_client.get_container_client(container_name)
     blob_client = container_client.get_blob_client(blob_name)
-    
+
     blob_data = blob_client.download_blob().readall()
     
-    # Improved by having it only copy the needed columns and specifying dtypes, reducing memory usage
-    usecols = ["Diet_type", "Protein(g)", "Carbs(g)", "Fat(g)"]
-    dtypes = { 
-        # This allows Panda to turn the diet_type from a string to a number making it easier to work with      
+    # This code below was added as a improvement for Task 5
+    # This is used to tell the code, which columns to load so we don't load unneeded data
+    usecols = ["Diet_type", "Protein(g)", "Carbs(g)", "Fat(g)"] 
+    # Panda has ways we can optomize how it reads and uses the data, the first one tells it we can turn diet_type to numeric values (Vegan = 0, Keto = 1, etc.)
+    # The other 3 columns simply tell it to create a smaller number as Panda defaults to float64 which has more decimal places, but we don't need that many for the macros.
+    dtypes = {
         "Diet_type": "category",
         "Protein(g)": "float32",
         "Carbs(g)": "float32",
         "Fat(g)": "float32"
     }
-    
+
+    # This is just the same pd.read_csv but using the variables established above
     df = pd.read_csv(io.BytesIO(blob_data), usecols=usecols, dtype=dtypes)
 
+    # This line creates a new column that has the numeric values for diet_type, this way we can use numbers rather than strings to determine which diet the meal is
+    df["Diet_type_code"] = df["Diet_type"].cat.codes
+
     avg_macros = (
-        df.groupby("Diet_type", observed=True)[["Protein(g)", "Carbs(g)", "Fat(g)"]]
-        .mean(numeric_only=True)
+        df.groupby("Diet_type")[["Protein(g)", "Carbs(g)", "Fat(g)"]]
+        .mean()
         .reset_index()
-    )   
+    )
 
     os.makedirs("simulated_nosql", exist_ok=True)
 
