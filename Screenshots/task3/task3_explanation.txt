@@ -1,0 +1,3 @@
+In this task, we used Azurite to create a local version of blob storage using both the pre-built docker image for azure-storage/azurite and Azure Storage Explorer.
+We then uploaded the All_Diets.csv file to a blob container using Azure Storage Explorer and created a "serverless" function lambda_function.py to connect to the blob storage,
+read the dataset, process the data to get the results.json that represents our noSQL Database. This shows a local version of a serverless function that is stored in a simulated NoSQL Database

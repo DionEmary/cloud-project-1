@@ -1,14 +1,28 @@
-# Use Python 3.9 slim image for smaller size
-FROM python:3.9-slim
+# Stage 1: Builder
+FROM python:3.9-slim AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy all files to container
+# Copy requirements file first to leverage caching
+COPY requirements.txt .
+
+# Create directory for dependencies
+RUN mkdir -p /install
+
+# Install dependencies into that directory
+RUN pip install --no-cache-dir --target=/install -r requirements.txt
+
+
+# Stage 2: Runtime
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copy installed dependencies from builder so that we don't need to reinstall them
+COPY --from=builder /install /usr/local/lib/python3.9/site-packages
+
+# Copy application code to container
 COPY . /app
 
-# Install required Python packages
-RUN pip install --no-cache-dir pandas matplotlib seaborn
-
-# Run the data analysis script
+# Default command to run the data analysis script
 CMD ["python", "data_analysis.py"]
