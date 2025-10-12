@@ -26,7 +26,9 @@ def process_nutritional_data_from_azurite():
     # Panda has ways we can optomize how it reads and uses the data, the first one tells it we can turn diet_type to numeric values (Vegan = 0, Keto = 1, etc.)
     # The other 3 columns simply tell it to create a smaller number as Panda defaults to float64 which has more decimal places, but we don't need that many for the macros.
     dtypes = {
+        # Stores diet_type as a number and string in a map so we can calculate with a numeric value, but display a string.
         "Diet_type": "category",
+        # Use float32 to save memory, we don't need the extra precision of float64 for these values
         "Protein(g)": "float32",
         "Carbs(g)": "float32",
         "Fat(g)": "float32"
@@ -35,7 +37,9 @@ def process_nutritional_data_from_azurite():
     # This is just the same pd.read_csv but using the variables established above
     df = pd.read_csv(io.BytesIO(blob_data), usecols=usecols, dtype=dtypes)
 
-    # This line creates a new column that has the numeric values for diet_type, this way we can use numbers rather than strings to determine which diet the meal is
+    # This line creates a new column that has the numeric values for diet_type, 
+    # this way we can use numbers rather than strings to determine which diet the meal is faster than before, 
+    # and is the reason we did "Diet_Type": "category" earlier
     df["Diet_type_code"] = df["Diet_type"].cat.codes
 
     avg_macros = (
