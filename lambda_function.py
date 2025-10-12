@@ -43,6 +43,9 @@ def process_nutritional_data_from_azurite():
     df["Diet_type_code"] = df["Diet_type"].cat.codes
 
     avg_macros = (
+        # Even though it says it is using diet_type not Diet_type_code, it is still using the numeric values behind the scenes
+        # As since we set that dtype earlier, panda knows it has a numeric value it can use for processing, but this way it still displays the 
+        # string value when we print it out or save it to a file.
         df.groupby("Diet_type")[["Protein(g)", "Carbs(g)", "Fat(g)"]]
         .mean()
         .reset_index()
