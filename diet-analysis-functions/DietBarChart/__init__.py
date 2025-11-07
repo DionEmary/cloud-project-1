@@ -1,39 +1,39 @@
-import azure.functions as func
+import os
+import pandas as pd
 from azure.storage.blob import BlobServiceClient
-import pandas as pd, matplotlib.pyplot as plt, io, time
+import matplotlib.pyplot as plt
+import io
+import azure.functions as func
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
-    start = time.time()
     try:
-        # Connect to Blob
-        connect_str = req.params.get("conn") or (
-            "AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/"
-            "K1SZFPTOtr/KBHBeksoGMGw==;DefaultEndpointsProtocol=http;"
-            "BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;"
-        )
+        # Read connection info
+        conn_str = os.environ["AzureStorageConnection"]
+        container_name = "datasets"
+        blob_name = "diet-analysis-functions/All_Diets.csv"
 
-        blob_service_client = BlobServiceClient.from_connection_string(connect_str)
-        blob_client = blob_service_client.get_container_client("datasets").get_blob_client("All_Diets.csv")
+        # Connect to Azurite blob storage
+        blob_service = BlobServiceClient.from_connection_string(conn_str)
+        blob_client = blob_service.get_blob_client(container=container_name, blob=blob_name)
         blob_data = blob_client.download_blob().readall()
 
+        # Load into DataFrame
         df = pd.read_csv(io.BytesIO(blob_data))
-        avg_macros = df.groupby("Diet_type")["Protein(g)"].mean().sort_values(ascending=False)
 
-        plt.figure(figsize=(10, 6))
-        avg_macros.plot(kind="bar", color="skyblue")
+        # Example visualization
+        avg_protein = df.groupby("Diet_type")["Protein(g)"].mean()
+        plt.figure(figsize=(8,5))
+        avg_protein.plot(kind="bar", color="steelblue")
         plt.title("Average Protein by Diet Type")
         plt.xlabel("Diet Type")
-        plt.ylabel("Average Protein (g)")
+        plt.ylabel("Protein (g)")
         plt.tight_layout()
 
-        buf = io.BytesIO()
-        plt.savefig(buf, format="png", dpi=150)
-        plt.close()
-        buf.seek(0)
-
-        elapsed = round(time.time() - start, 3)
-        return func.HttpResponse(buf.getvalue(), mimetype="image/png",
-                                 headers={"X-Elapsed-Seconds": str(elapsed)})
+        # Return as image
+        img_bytes = io.BytesIO()
+        plt.savefig(img_bytes, format="png")
+        img_bytes.seek(0)
+        return func.HttpResponse(img_bytes.getvalue(), mimetype="image/png")
 
     except Exception as e:
-        return func.HttpResponse(str(e), status_code=500)
+        return func.HttpResponse(f"Error: {e}", status_code=500)
