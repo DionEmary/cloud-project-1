@@ -13,6 +13,9 @@ export default function Home() {
   const validDiets = ["Paleo", "Vegan", "Keto", "Mediterranean", "Dash", "All"];
   const [selectedDiet, setSelectedDiet] = useState("All");
 
+  // Diet used for pie chart since we added the feature to select diet for pie chart separately
+  const [pieDiet, setPieDiet] = useState("Keto");
+
   const [charts, setCharts] = useState({
     bar: { img: null, time: null },
     line: { img: null, time: null },
@@ -40,12 +43,34 @@ export default function Home() {
     }
   };
 
+  const fetchPieChart = async (diet) => {
+    const start = performance.now();
+    try {
+      const response = await fetch(`${API_BASE}DietPieChart?diet=${diet}`);
+      if (!response.ok) throw new Error(`Pie chart not found for diet: ${diet}`);
+      const blob = await response.blob();
+      const imgUrl = URL.createObjectURL(blob);
+      const elapsed = ((performance.now() - start) / 1000).toFixed(2);
+
+      setCharts((prev) => ({
+        ...prev,
+        pie: { img: imgUrl, time: elapsed },
+      }));
+    } catch (error) {
+      console.error("Error fetching Pie chart:", error);
+    }
+  };
+
   // Fetch each chart on mount
   useEffect(() => {
     fetchChart("bar", "DietBarChart");
     fetchChart("line", "DietLineChart");
-    fetchChart("pie", "DietPieChart");
+    fetchPieChart(pieDiet);
   }, []);
+
+  useEffect(() => {
+    fetchPieChart(pieDiet);
+  }, [pieDiet]);
 
   // Gets the CSV data with the selected Diet
   const fetchDietData = async (diet) => {
@@ -102,7 +127,8 @@ export default function Home() {
 
             fetchChart("bar", "DietBarChart");
             fetchChart("line", "DietLineChart");
-            fetchChart("pie", "DietPieChart");
+            setPieDiet("Keto");
+            fetchPieChart(pieDiet);
             fetchDietData(selectedDiet);
 
             setLoadingData(false);
@@ -119,21 +145,26 @@ export default function Home() {
           <h2 className="text-xl font-semibold">Explore Nutritional Insights</h2>
 
           <div className="flex flex-wrap justify-between gap-6 p-4">
+            {/* Bar Chart */}
             <ChartCard
               title="Bar Chart"
               desc="Average Protein Content by Diet Type"
               imgUrl={charts.bar.img}
               processingTime={charts.bar.time}
             />
+
+            {/* Line Chart */}
             <ChartCard
               title="Line Chart"
               desc="Nutrient Trends Over Time"
               imgUrl={charts.line.img}
               processingTime={charts.line.time}
             />
+
+            {/* Pie Chart */}
             <ChartCard
               title="Pie Chart"
-              desc="Dietary Composition by Category"
+              desc={`Macronutrient Composition for ${pieDiet} Diet`}
               imgUrl={charts.pie.img}
               processingTime={charts.pie.time}
             />
@@ -150,23 +181,47 @@ export default function Home() {
         <section className="py-6 px-10">
           <h2 className="text-xl font-semibold">Filters and Data Interaction</h2>
 
-          {/* Dropdown */}
-          <div className="mt-4">
-            <label className="mr-2 font-medium" htmlFor="diet-select">
-              Select Diet:
-            </label>
-            <select
-              id="diet-select"
-              value={selectedDiet}
-              onChange={(e) => handleDietChange(e.target.value)}
-              className="border border-gray-300 rounded p-2"
-            >
-              {validDiets.map((diet) => (
-                <option key={diet} value={diet}>
-                  {diet}
-                </option>
-              ))}
-            </select>
+          {/* Diet selectors: CSV table + Pie Chart */}
+          <div className="mt-4 flex flex-wrap gap-4 items-center">
+            {/* CSV Table Diet Selector */}
+            <div className="flex items-center gap-2">
+              <label className="font-medium" htmlFor="diet-select">
+                Select Table Diet:
+              </label>
+              <select
+                id="diet-select"
+                value={selectedDiet}
+                onChange={(e) => handleDietChange(e.target.value)}
+                className="border border-gray-300 rounded p-2"
+              >
+                {validDiets.map((diet) => (
+                  <option key={diet} value={diet}>
+                    {diet}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Pie Chart Diet Selector */}
+            <div className="flex items-center gap-2">
+              <label className="font-medium" htmlFor="pie-diet-select">
+                Select Pie Chart Diet:
+              </label>
+              <select
+                id="pie-diet-select"
+                value={pieDiet}
+                onChange={(e) => setPieDiet(e.target.value)}
+                className="border border-gray-300 rounded p-2"
+              >
+                {validDiets
+                  .filter((d) => d !== "All") // Pie chart requires a single diet
+                  .map((diet) => (
+                    <option key={diet} value={diet}>
+                      {diet}
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
 
           {/* Diet CSV Table with Pagination */}
