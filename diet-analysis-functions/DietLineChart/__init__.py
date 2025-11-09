@@ -17,7 +17,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             raise ValueError("AzureStorageConnection environment variable not set")
 
         container_name = "datasets"
-        blob_name = "diet-analysis-functions/All_Diets.csv"
+        blob_name = "All_Diets.csv"
 
         # Connect to Azurite Blob Storage
         blob_service_client = BlobServiceClient.from_connection_string(connect_str)
