@@ -41,6 +41,36 @@ export default function DietDataTable({
     return pages;
   };
 
+  // Function to export CSV
+  const exportToCSV = () => {
+    if (!data || data.length === 0) return;
+
+    const keys = Object.keys(data[0]);
+
+    const csvRows = [
+      keys.join(","), // header row
+      ...data.map((row) =>
+        keys
+          .map((key) => {
+            const val = row[key]?.toString() ?? "";
+            // Escape quotes and wrap in quotes if it contains comma, quote, or newline
+            if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+              return `"${val.replace(/"/g, '""')}"`;
+            }
+            return val;
+          })
+          .join(",")
+      ),
+    ];
+
+    const csvString = csvRows.join("\n");
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `${selectedDiet}_diet_data.csv`);
+    link.click();
+  };
+
   return (
     <div className="mt-6">
       {loading ? (
@@ -49,9 +79,17 @@ export default function DietDataTable({
         <p className="text-gray-500 mt-2">No data to display.</p>
       ) : (
         <>
-          <p className="mb-2 text-gray-700">
-            {selectedDiet} Diet Data | Processed in {processingTime}s
-          </p>
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-gray-700">
+              {selectedDiet} Diet Data | Processed in {processingTime}s
+            </p>
+            <button
+              onClick={exportToCSV}
+              className="px-3 py-1 border rounded bg-blue-500 text-white hover:bg-blue-600"
+            >
+              Download CSV
+            </button>
+          </div>
 
           <div className="overflow-x-auto">
             <table className="min-w-full border border-gray-200">

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import ChartCard from "./components/ChartCard";
 import DietDataTable from "./components/DietDataTable";
 import DietInsightsTable from "./components/DietInsightsTable";
+import Papa from "papaparse";
 
 export default function Home() {
   const API_BASE =
@@ -54,18 +55,13 @@ export default function Home() {
       const response = await fetch(`${API_BASE}DietSearch?diet=${diet}`);
       const csvText = await response.text();
 
-      // Parse CSV
-      const rows = csvText.trim().split("\n");
-      const headers = rows[0].split(",");
-      const data = rows.slice(1).map((row) => {
-        const values = row.split(",");
-        return headers.reduce((obj, header, i) => {
-          obj[header] = values[i];
-          return obj;
-        }, {});
+      // Parse CSV with PapaParse
+      const parsed = Papa.parse(csvText, {
+        header: true,       // use first row as header
+        skipEmptyLines: true
       });
 
-      setFilteredData(data);
+      setFilteredData(parsed.data);
 
       // CSV processing time
       const elapsed = ((performance.now() - start) / 1000).toFixed(2);
