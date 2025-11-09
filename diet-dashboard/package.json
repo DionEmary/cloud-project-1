@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p 8080",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "next build"
   },
   "dependencies": {
     "next": "16.0.1",
