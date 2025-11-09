@@ -1,10 +1,14 @@
-name: Build and Deploy Next.js App to Azure Web App - diet-insights-dashboard
+name: Build and deploy Python project to Azure Function App - diet-analysis
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+
+env:
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: './diet-analysis-functions'
+  PYTHON_VERSION: '3.11'
 
 jobs:
   build:
@@ -16,22 +20,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Python version
+        uses: actions/setup-python@v5
         with:
-          node-version: '20.x'
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies and build app
-        working-directory: ./diet-dashboard
+      - name: Install dependencies
         run: |
-          npm install
-          npm run build
-
-      - name: Upload folder artifact for deployment
+          cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+          pip install -r requirements.txt --target=".python_packages/lib/site-packages"
+      - name: Zip artifact for deployment
+        run: |
+          cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+          zip -r ../release.zip .
+      - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: node-app
-          path: diet-dashboard
+          name: python-app
+          path: release.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -41,21 +47,24 @@ jobs:
       contents: read
 
     steps:
-      - name: Download artifact
+      - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: node-app
+          name: python-app
+
+      - name: Unzip artifact for deployment
+        run: unzip release.zip
 
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_181E7EA80A294091BE7E25052231EB40 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_45D8B1C73E6B4C46B528D2E94961CD04 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_690557483496473B808D2DB0B2EB78B5 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_1D297B365F664BAE92BC1DEB170E96CE }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_2E883E4A198C41C8B4B0BEE025490961 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_075B5E22070F413CBBA888C2CC683354 }}
 
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        id: deploy-to-function
         with:
-          app-name: 'diet-insights-dashboard'
-          slot-name: 'Production'
-          package: node-app/diet-dashboard
+          app-name: 'diet-analysis'
+          package: '.'
