@@ -24,13 +24,19 @@ jobs:
         working-directory: ./diet-dashboard
         run: |
           npm install
-          npm run build --if-present
+          npm run build
 
-      - name: Upload artifact for deployment job
+      # Upload only what Azure needs (package.json, next.config, .next, public)
+      - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: ./diet-dashboard
+          path: |
+            diet-dashboard/.next
+            diet-dashboard/public
+            diet-dashboard/package.json
+            diet-dashboard/package-lock.json
+            diet-dashboard/next.config.js
 
   deploy:
     runs-on: ubuntu-latest
@@ -57,4 +63,4 @@ jobs:
         with:
           app-name: 'diet-insights-dashboard'
           slot-name: 'Production'
-          package: ./diet-dashboard
+          package: .
