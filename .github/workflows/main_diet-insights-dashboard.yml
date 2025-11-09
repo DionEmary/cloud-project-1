@@ -60,3 +60,13 @@ jobs:
           app-name: 'diet-insights-dashboard'
           slot-name: 'Production'
           package: deploy-package
+
+      - name: Install dependencies on Azure
+        run: npm ci
+        working-directory: /home/site/wwwroot
+
+      - name: Ensure startup command
+        run: az webapp config set \
+          --resource-group diet-analysis-rg \
+          --name diet-insights-dashboard \
+          --startup-file "npm start"
