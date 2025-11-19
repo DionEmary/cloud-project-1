@@ -8,7 +8,8 @@ import Papa from "papaparse";
 
 export default function Home() {
   const API_BASE =
-    "https://diet-analysis-afb4ceacghajcsbp.canadacentral-01.azurewebsites.net/api/";
+    "https://diet-function-app-hfavhda8gcgcdce0.canadacentral-01.azurewebsites.net/api/";
+    
 
   const validDiets = ["Paleo", "Vegan", "Keto", "Mediterranean", "Dash", "All"];
   const [selectedDiet, setSelectedDiet] = useState("All");
