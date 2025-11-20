@@ -8,7 +8,7 @@ import Papa from "papaparse";
 
 export default function Home() {
   const API_BASE =
-    "https://diet-function-app-hfavhda8gcgcdce0.canadacentral-01.azurewebsites.net/api/";
+    "https://diet-functions-app-e8bjgpdrh0aqh9hh.canadacentral-01.azurewebsites.net/api/";
     
 
   const validDiets = ["Paleo", "Vegan", "Keto", "Mediterranean", "Dash", "All"];
@@ -157,7 +157,7 @@ export default function Home() {
             {/* Line Chart */}
             <ChartCard
               title="Line Chart"
-              desc="Nutrient Trends Over Time"
+              desc="Nutrient's Per Diet comparison" 
               imgUrl={charts.line.img}
               processingTime={charts.line.time}
             />
