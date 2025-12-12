@@ -5,6 +5,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from azure.storage.blob import BlobServiceClient
 import azure.functions as func
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from utils.cache_helper import get_cached_results
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     start_time = time.time()
@@ -13,18 +16,21 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # Read connection info
         conn_str = os.environ["AzureStorageConnection"]
         container_name = "datasets"
-        blob_name = "All_Diets.csv"
 
-        # Connect to Azurite or Azure Blob Storage
-        blob_service = BlobServiceClient.from_connection_string(conn_str)
-        blob_client = blob_service.get_blob_client(container=container_name, blob=blob_name)
-        blob_data = blob_client.download_blob().readall()
+        # PHASE 3: Try to get data from cache first
+        cache = get_cached_results(conn_str, container_name)
 
-        # Load into DataFrame
-        df = pd.read_csv(io.BytesIO(blob_data))
-
-        # Example visualization
-        avg_protein = df.groupby("Diet_type")["Protein(g)"].mean()
+        if cache and "bar_chart" in cache:
+            # Use cached data (FAST!)
+            avg_protein = pd.Series(cache["bar_chart"]["data"])
+        else:
+            # Fallback: Calculate from original CSV if cache not available
+            blob_name = "All_Diets.csv"
+            blob_service = BlobServiceClient.from_connection_string(conn_str)
+            blob_client = blob_service.get_blob_client(container=container_name, blob=blob_name)
+            blob_data = blob_client.download_blob().readall()
+            df = pd.read_csv(io.BytesIO(blob_data))
+            avg_protein = df.groupby("Diet_type")["Protein(g)"].mean()
         plt.figure(figsize=(8,5))
         avg_protein.plot(kind="bar", color="steelblue")
         plt.title("Average Protein by Diet Type")
