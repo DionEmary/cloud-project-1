@@ -1,27 +1,19 @@
 "use client";
 
-import { useState } from "react";
-
 export default function DietDataTable({
   data,
   loading,
   processingTime,
   selectedDiet,
-  rowsPerPage = 25,
+  currentPage,
+  totalPages,
+  onPageChange,
 }) {
-  const [currentPage, setCurrentPage] = useState(1);
-
   if (!data || data.length === 0) return null;
-
-  const totalPages = Math.ceil(data.length / rowsPerPage);
-  const currentRows = data.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
 
   const goToPage = (page) => {
     if (page < 1 || page > totalPages) return;
-    setCurrentPage(page);
+    onPageChange(page);
   };
 
   // Condensed pagination numbers
@@ -54,7 +46,7 @@ export default function DietDataTable({
             <table className="min-w-full border border-gray-200">
               <thead>
                 <tr className="bg-gray-100">
-                  {Object.keys(currentRows[0]).map((col) => (
+                  {Object.keys(data[0]).map((col) => (
                     <th
                       key={col}
                       className="px-4 py-2 text-left border-b border-gray-200"
@@ -65,7 +57,7 @@ export default function DietDataTable({
                 </tr>
               </thead>
               <tbody>
-                {currentRows.map((row, idx) => (
+                {data.map((row, idx) => (
                   <tr key={idx} className="hover:bg-gray-50">
                     {Object.values(row).map((val, i) => (
                       <td

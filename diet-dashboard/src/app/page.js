@@ -27,6 +27,13 @@ export default function Home() {
   const [csvProcessingTime, setCsvProcessingTime] = useState(null);
   const [loadingData, setLoadingData] = useState(false);
 
+  // NEW: Keyword search and pagination states
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const pageSize = 20; // Results per page
+
   const fetchChart = async (type, endpoint) => {
     const start = performance.now();
     try {
@@ -73,13 +80,26 @@ export default function Home() {
     fetchPieChart(pieDiet);
   }, [pieDiet]);
 
-  // Gets the CSV data with the selected Diet
-  const fetchDietData = async (diet) => {
+  // Gets the CSV data with the selected Diet, keyword search, and pagination
+  const fetchDietData = async (diet, keyword = "", page = 1) => {
     setLoadingData(true);
     const start = performance.now();
     try {
-      const response = await fetch(`${API_BASE}DietSearch?diet=${diet}`);
+      // Build query string with diet, keyword, page, and page_size
+      let url = `${API_BASE}DietSearch?diet=${diet}&page=${page}&page_size=${pageSize}`;
+      if (keyword) {
+        url += `&keyword=${encodeURIComponent(keyword)}`;
+      }
+
+      const response = await fetch(url);
       const csvText = await response.text();
+
+      // Get pagination metadata from response headers
+      const totalRecordsHeader = response.headers.get("X-Total-Records");
+      const totalPagesHeader = response.headers.get("X-Total-Pages");
+
+      if (totalRecordsHeader) setTotalRecords(parseInt(totalRecordsHeader));
+      if (totalPagesHeader) setTotalPages(parseInt(totalPagesHeader));
 
       // Parse CSV with PapaParse
       const parsed = Papa.parse(csvText, {
@@ -96,6 +116,8 @@ export default function Home() {
       console.error("Error fetching diet data:", error);
       setFilteredData([]);
       setCsvProcessingTime(null);
+      setTotalRecords(0);
+      setTotalPages(1);
     } finally {
       setLoadingData(false);
     }
@@ -108,7 +130,18 @@ export default function Home() {
 
   const handleDietChange = (diet) => {
     setSelectedDiet(diet);
-    fetchDietData(diet);
+    setCurrentPage(1); // Reset to page 1 when diet changes
+    fetchDietData(diet, searchKeyword, 1);
+  };
+
+  const handleSearch = () => {
+    setCurrentPage(1); // Reset to page 1 when searching
+    fetchDietData(selectedDiet, searchKeyword, 1);
+  };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    fetchDietData(selectedDiet, searchKeyword, newPage);
   };
 
   return (
@@ -225,12 +258,60 @@ export default function Home() {
             </div>
           </div>
 
+          {/* NEW: Keyword Search Box */}
+          <div className="mt-4 flex items-center gap-2">
+            <label className="font-medium" htmlFor="keyword-search">
+              Search Recipes:
+            </label>
+            <input
+              id="keyword-search"
+              type="text"
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") handleSearch();
+              }}
+              placeholder="Enter keyword (e.g., chicken, protein...)"
+              className="border border-gray-300 rounded p-2 w-80"
+            />
+            <button
+              onClick={handleSearch}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Search
+            </button>
+            {searchKeyword && (
+              <button
+                onClick={() => {
+                  setSearchKeyword("");
+                  setCurrentPage(1);
+                  fetchDietData(selectedDiet, "", 1);
+                }}
+                className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* NEW: Show search results info */}
+          {totalRecords > 0 && (
+            <div className="mt-2 text-sm text-gray-600">
+              Showing {filteredData.length} of {totalRecords} results
+              {searchKeyword && ` for "${searchKeyword}"`}
+              {" (Page "}{currentPage}{" of "}{totalPages}{")"}
+            </div>
+          )}
+
           {/* Diet CSV Table with Pagination */}
           <DietDataTable
             data={filteredData}
             loading={loadingData}
             processingTime={csvProcessingTime}
             selectedDiet={selectedDiet}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
           />
         </section>
       </main>

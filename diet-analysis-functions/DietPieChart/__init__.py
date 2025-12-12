@@ -7,10 +7,13 @@ import pandas as pd
 import io
 import time
 import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from utils.cache_helper import get_cached_results
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     start_time = time.time()
-    
+
     # Get diet parameter from query string; default to "Keto"
     diet = (req.params.get("diet") or "Keto").strip().title()
 
@@ -19,28 +22,26 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         connect_str = os.environ.get("AzureStorageConnection")
         if not connect_str:
             raise ValueError("AzureStorageConnection environment variable not set in local.settings.json")
-        
+
         container_name = "datasets"
-        blob_name = "All_Diets.csv"
 
-        # Connect to Azurite blob storage
-        blob_service_client = BlobServiceClient.from_connection_string(connect_str)
-        blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
-        blob_data = blob_client.download_blob().readall()
+        # PHASE 3: Try to get data from cache first
+        cache = get_cached_results(connect_str, container_name)
 
-        # Load CSV into DataFrame
-        df = pd.read_csv(io.BytesIO(blob_data))
-
-        # Normalize diet names
-        df["Diet_type"] = df["Diet_type"].astype(str).str.strip().str.title()
-
-        # Filter for requested diet
-        subset = df[df["Diet_type"] == diet]
-        if subset.empty:
-            return func.HttpResponse(f"Diet '{diet}' not found in dataset.", status_code=404)
-
-        # Compute average macronutrients
-        avg_macros = subset[["Protein(g)", "Carbs(g)", "Fat(g)"]].mean()
+        if cache and "pie_chart" in cache and diet in cache["pie_chart"]:
+            # Use cached data (FAST!)
+            avg_macros = pd.Series(cache["pie_chart"][diet])
+        else:
+            # Fallback: Calculate from cleaned CSV if cache not available
+            blob_name = "All_Diets_cleaned.csv"
+            blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+            blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+            blob_data = blob_client.download_blob().readall()
+            df = pd.read_csv(io.BytesIO(blob_data))
+            subset = df[df["Diet_type"] == diet]
+            if subset.empty:
+                return func.HttpResponse(f"Diet '{diet}' not found in dataset.", status_code=404)
+            avg_macros = subset[["Protein(g)", "Carbs(g)", "Fat(g)"]].mean()
 
         # Plot pie chart
         plt.figure(figsize=(6, 6))
