@@ -5,8 +5,12 @@ import ChartCard from "./components/ChartCard";
 import DietDataTable from "./components/DietDataTable";
 import DietInsightsTable from "./components/DietInsightsTable";
 import Papa from "papaparse";
+import UserMenu from "./components/UserMenu";
 
-export default function Home() {
+// Used to Ensure Authentication before rendering the Content
+import ProtectedRoute from "./components/ProtectedRoute";
+
+function HomeContent() {
   const API_BASE =
     "https://diet-functions-app-e8bjgpdrh0aqh9hh.canadacentral-01.azurewebsites.net/api/";
     
@@ -117,27 +121,31 @@ export default function Home() {
       <header className="bg-[#2563EB] text-white p-4 flex justify-between items-center sticky top-0 z-10">
         <h1 className="text-3xl font-bold">Nutritional Insights</h1>
 
-        <button
-          onClick={() => {
-            setCharts({    
-              bar: { img: null, time: null },
-              line: { img: null, time: null },
-              pie: { img: null, time: null },
-            });
-            setLoadingData(true);
+        <div className="flex items-center gap-4">
+          <UserMenu />
 
-            fetchChart("bar", "DietBarChart");
-            fetchChart("line", "DietLineChart");
-            setPieDiet("Keto");
-            fetchPieChart(pieDiet);
-            fetchDietData(selectedDiet);
+          <button
+            onClick={() => {
+              setCharts({
+                bar: { img: null, time: null },
+                line: { img: null, time: null },
+                pie: { img: null, time: null },
+              });
+              setLoadingData(true);
 
-            setLoadingData(false);
-          }}
-          className="px-4 py-2 bg-white text-blue-500 font-semibold rounded hover:bg-gray-100"
-        >
-          Refresh
-        </button>
+              fetchChart("bar", "DietBarChart");
+              fetchChart("line", "DietLineChart");
+              setPieDiet("Keto");
+              fetchPieChart(pieDiet);
+              fetchDietData(selectedDiet);
+
+              setLoadingData(false);
+            }}
+            className="px-4 py-2 bg-white text-blue-500 font-semibold rounded hover:bg-gray-100"
+          >
+            Refresh
+          </button>
+        </div>
       </header>
 
       <main>
@@ -240,3 +248,11 @@ export default function Home() {
     </div>
   );
 }
+
+export default function Home() {
+  return (
+    <ProtectedRoute>
+      <HomeContent />
+    </ProtectedRoute>
+  );
+} 
