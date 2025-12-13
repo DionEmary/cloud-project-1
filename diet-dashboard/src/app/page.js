@@ -12,7 +12,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 function HomeContent() {
   const API_BASE =
-    "https://diet-functions-app-e8bjgpdrh0aqh9hh.canadacentral-01.azurewebsites.net/api/";
+    "https://project-3-backend-brayevbje4cxhsek.canadacentral-01.azurewebsites.net/api/";
     
 
   const validDiets = ["Paleo", "Vegan", "Keto", "Mediterranean", "Dash", "All"];
