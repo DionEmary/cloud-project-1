@@ -4,22 +4,19 @@ import { useEffect, useState } from "react";
 import ChartCard from "./components/ChartCard";
 import DietDataTable from "./components/DietDataTable";
 import DietInsightsTable from "./components/DietInsightsTable";
-import Papa from "papaparse";
 import UserMenu from "./components/UserMenu";
-
-// Used to Ensure Authentication before rendering the Content
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function HomeContent() {
   const API_BASE =
     "https://project-3-backend-brayevbje4cxhsek.canadacentral-01.azurewebsites.net/api/";
-    
 
   const validDiets = ["Paleo", "Vegan", "Keto", "Mediterranean", "Dash", "All"];
   const [selectedDiet, setSelectedDiet] = useState("All");
-
-  // Diet used for pie chart since we added the feature to select diet for pie chart separately
   const [pieDiet, setPieDiet] = useState("Keto");
+  const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const [charts, setCharts] = useState({
     bar: { img: null, time: null },
@@ -28,9 +25,10 @@ function HomeContent() {
   });
 
   const [filteredData, setFilteredData] = useState([]);
-  const [csvProcessingTime, setCsvProcessingTime] = useState(null);
+  const [pagination, setPagination] = useState({});
   const [loadingData, setLoadingData] = useState(false);
 
+  // Fetch charts
   const fetchChart = async (type, endpoint) => {
     const start = performance.now();
     try {
@@ -39,12 +37,9 @@ function HomeContent() {
       const imgUrl = URL.createObjectURL(blob);
       const elapsed = ((performance.now() - start) / 1000).toFixed(2);
 
-      setCharts((prev) => ({
-        ...prev,
-        [type]: { img: imgUrl, time: elapsed },
-      }));
-    } catch (error) {
-      console.error(`Error fetching ${type} chart:`, error);
+      setCharts((prev) => ({ ...prev, [type]: { img: imgUrl, time: elapsed } }));
+    } catch (err) {
+      console.error(`Error fetching ${type} chart:`, err);
     }
   };
 
@@ -57,62 +52,57 @@ function HomeContent() {
       const imgUrl = URL.createObjectURL(blob);
       const elapsed = ((performance.now() - start) / 1000).toFixed(2);
 
-      setCharts((prev) => ({
-        ...prev,
-        pie: { img: imgUrl, time: elapsed },
-      }));
-    } catch (error) {
-      console.error("Error fetching Pie chart:", error);
+      setCharts((prev) => ({ ...prev, pie: { img: imgUrl, time: elapsed } }));
+    } catch (err) {
+      console.error("Error fetching Pie chart:", err);
     }
   };
 
-  // Fetch each chart on mount
-  useEffect(() => {
-    fetchChart("bar", "DietBarChart");
-    fetchChart("line", "DietLineChart");
-    fetchPieChart(pieDiet);
-  }, []);
-
-  useEffect(() => {
-    fetchPieChart(pieDiet);
-  }, [pieDiet]);
-
-  // Gets the CSV data with the selected Diet
-  const fetchDietData = async (diet) => {
+  // Fetch diet table
+  const fetchDietData = async (diet = selectedDiet, kw = keyword, pg = page) => {
     setLoadingData(true);
-    const start = performance.now();
     try {
-      const response = await fetch(`${API_BASE}DietSearch?diet=${diet}`);
-      const csvText = await response.text();
-
-      // Parse CSV with PapaParse
-      const parsed = Papa.parse(csvText, {
-        header: true,       // use first row as header
-        skipEmptyLines: true
+      const params = new URLSearchParams({
+        diet: diet,
+        keyword: kw,
+        page: pg,
+        page_size: pageSize,
       });
-
-      setFilteredData(parsed.data);
-
-      // CSV processing time
-      const elapsed = ((performance.now() - start) / 1000).toFixed(2);
-      setCsvProcessingTime(elapsed);
-    } catch (error) {
-      console.error("Error fetching diet data:", error);
+      const response = await fetch(`${API_BASE}DietSearch?${params}`);
+      if (!response.ok) throw new Error(`Error fetching data: ${response.statusText}`);
+      const json = await response.json();
+      setFilteredData(json.data);
+      setPagination(json.pagination);
+    } catch (err) {
+      console.error(err);
       setFilteredData([]);
-      setCsvProcessingTime(null);
+      setPagination({});
     } finally {
       setLoadingData(false);
     }
   };
 
-  // Load all diets on mount
+  // Initial data fetch
   useEffect(() => {
+    fetchChart("bar", "DietBarChart");
+    fetchChart("line", "DietLineChart");
+    fetchPieChart(pieDiet);
     fetchDietData("All");
   }, []);
 
+  // Refetch pie chart when pieDiet changes
+  useEffect(() => {
+    fetchPieChart(pieDiet);
+  }, [pieDiet]);
+
+  // Refetch table when selectedDiet, page, or keyword changes
+  useEffect(() => {
+    fetchDietData(selectedDiet, keyword, page);
+  }, [selectedDiet, page, keyword]);
+
   const handleDietChange = (diet) => {
     setSelectedDiet(diet);
-    fetchDietData(diet);
+    setPage(1); // reset to first page
   };
 
   return (
@@ -120,26 +110,15 @@ function HomeContent() {
       {/* Header */}
       <header className="bg-[#2563EB] text-white p-4 flex justify-between items-center sticky top-0 z-10">
         <h1 className="text-3xl font-bold">Nutritional Insights</h1>
-
         <div className="flex items-center gap-4">
           <UserMenu />
-
           <button
             onClick={() => {
-              setCharts({
-                bar: { img: null, time: null },
-                line: { img: null, time: null },
-                pie: { img: null, time: null },
-              });
-              setLoadingData(true);
-
+              setCharts({ bar: { img: null }, line: { img: null }, pie: { img: null } });
               fetchChart("bar", "DietBarChart");
               fetchChart("line", "DietLineChart");
-              setPieDiet("Keto");
               fetchPieChart(pieDiet);
               fetchDietData(selectedDiet);
-
-              setLoadingData(false);
             }}
             className="px-4 py-2 bg-white text-blue-500 font-semibold rounded hover:bg-gray-100"
           >
@@ -152,25 +131,19 @@ function HomeContent() {
         {/* Charts */}
         <section className="py-6 px-10">
           <h2 className="text-xl font-semibold">Explore Nutritional Insights</h2>
-
           <div className="flex flex-wrap justify-between gap-6 p-4">
-            {/* Bar Chart */}
             <ChartCard
               title="Bar Chart"
               desc="Average Protein Content by Diet Type"
               imgUrl={charts.bar.img}
               processingTime={charts.bar.time}
             />
-
-            {/* Line Chart */}
             <ChartCard
               title="Line Chart"
-              desc="Nutrient's Per Diet comparison" 
+              desc="Nutrient's Per Diet comparison"
               imgUrl={charts.line.img}
               processingTime={charts.line.time}
             />
-
-            {/* Pie Chart */}
             <ChartCard
               title="Pie Chart"
               desc={`Macronutrient Composition for ${pieDiet} Diet`}
@@ -180,68 +153,66 @@ function HomeContent() {
           </div>
         </section>
 
-        {/* Nutritional Insights Button */}
+        {/* Insights */}
         <section className="py-6 px-10">
           <h2 className="text-xl font-semibold">API Interactions</h2>
           <DietInsightsTable apiUrl={`${API_BASE}DietInsights`} />
         </section>
 
-        {/* Filters and Data Interaction */}
+        {/* Filters and Table */}
         <section className="py-6 px-10">
           <h2 className="text-xl font-semibold">Filters and Data Interaction</h2>
-
-          {/* Diet selectors: CSV table + Pie Chart */}
           <div className="mt-4 flex flex-wrap gap-4 items-center">
-            {/* CSV Table Diet Selector */}
+            {/* Diet selector */}
             <div className="flex items-center gap-2">
-              <label className="font-medium" htmlFor="diet-select">
-                Select Table Diet:
-              </label>
+              <label className="font-medium" htmlFor="diet-select">Table Diet:</label>
               <select
                 id="diet-select"
                 value={selectedDiet}
                 onChange={(e) => handleDietChange(e.target.value)}
                 className="border border-gray-300 rounded p-2"
               >
-                {validDiets.map((diet) => (
-                  <option key={diet} value={diet}>
-                    {diet}
-                  </option>
-                ))}
+                {validDiets.map((diet) => <option key={diet} value={diet}>{diet}</option>)}
               </select>
             </div>
 
-            {/* Pie Chart Diet Selector */}
+            {/* Keyword search */}
             <div className="flex items-center gap-2">
-              <label className="font-medium" htmlFor="pie-diet-select">
-                Select Pie Chart Diet:
-              </label>
+              <label className="font-medium" htmlFor="keyword">Search:</label>
+              <input
+                id="keyword"
+                type="text"
+                value={keyword}
+                onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
+                placeholder="Enter keyword..."
+                className="border p-2 rounded"
+              />
+            </div>
+
+            {/* Pie Chart selector */}
+            <div className="flex items-center gap-2">
+              <label className="font-medium" htmlFor="pie-diet-select">Pie Chart Diet:</label>
               <select
                 id="pie-diet-select"
                 value={pieDiet}
                 onChange={(e) => setPieDiet(e.target.value)}
                 className="border border-gray-300 rounded p-2"
               >
-                {validDiets
-                  .filter((d) => d !== "All") // Pie chart requires a single diet
-                  .map((diet) => (
-                    <option key={diet} value={diet}>
-                      {diet}
-                    </option>
-                  ))}
+                {validDiets.filter(d => d !== "All").map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
           </div>
 
-          {/* Diet CSV Table with Pagination */}
           <DietDataTable
             data={filteredData}
             loading={loadingData}
-            processingTime={csvProcessingTime}
-            selectedDiet={selectedDiet}
+            currentPage={pagination.current_page || 1}
+            totalPages={pagination.total_pages || 1}
+            onPageChange={setPage}
           />
         </section>
       </main>
+
       <footer className="bg-[#2563EB] text-white p-4 flex justify-center items-center">
         <p>© 2025 Nutritional Insights. All Rights Reserved.</p>
       </footer>
@@ -255,4 +226,4 @@ export default function Home() {
       <HomeContent />
     </ProtectedRoute>
   );
-} 
+}

@@ -5,24 +5,13 @@ import { useState } from "react";
 export default function DietDataTable({
   data,
   loading,
-  processingTime,
-  selectedDiet,
-  rowsPerPage = 25,
+  currentPage = 1,
+  totalPages = 1,
+  onPageChange = () => {},
 }) {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [inputPage, setInputPage] = useState("");
 
   if (!data || data.length === 0) return null;
-
-  const totalPages = Math.ceil(data.length / rowsPerPage);
-  const currentRows = data.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
-
-  const goToPage = (page) => {
-    if (page < 1 || page > totalPages) return;
-    setCurrentPage(page);
-  };
 
   // Condensed pagination numbers
   const getPageNumbers = (current, total, maxVisible = 6) => {
@@ -41,6 +30,14 @@ export default function DietDataTable({
     return pages;
   };
 
+  const handleInputPage = () => {
+    const pageNum = Number(inputPage);
+    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+      onPageChange(pageNum);
+      setInputPage("");
+    }
+  };
+
   return (
     <div className="mt-6">
       {loading ? (
@@ -49,12 +46,11 @@ export default function DietDataTable({
         <p className="text-gray-500 mt-2">No data to display.</p>
       ) : (
         <>
-
           <div className="overflow-x-auto">
             <table className="min-w-full border border-gray-200">
               <thead>
                 <tr className="bg-gray-100">
-                  {Object.keys(currentRows[0]).map((col) => (
+                  {Object.keys(data[0]).map((col) => (
                     <th
                       key={col}
                       className="px-4 py-2 text-left border-b border-gray-200"
@@ -65,7 +61,7 @@ export default function DietDataTable({
                 </tr>
               </thead>
               <tbody>
-                {currentRows.map((row, idx) => (
+                {data.map((row, idx) => (
                   <tr key={idx} className="hover:bg-gray-50">
                     {Object.values(row).map((val, i) => (
                       <td
@@ -82,9 +78,9 @@ export default function DietDataTable({
           </div>
 
           {/* Pagination */}
-          <div className="flex justify-center items-center mt-4 space-x-2">
+          <div className="flex flex-wrap items-center justify-center mt-4 gap-2">
             <button
-              onClick={() => goToPage(currentPage - 1)}
+              onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage === 1}
               className="px-3 py-1 border rounded disabled:opacity-50"
             >
@@ -94,7 +90,7 @@ export default function DietDataTable({
             {getPageNumbers(currentPage, totalPages).map((page) => (
               <button
                 key={page}
-                onClick={() => goToPage(page)}
+                onClick={() => onPageChange(page)}
                 className={`px-3 py-1 border rounded ${
                   page === currentPage ? "bg-blue-500 text-white" : ""
                 }`}
@@ -103,26 +99,44 @@ export default function DietDataTable({
               </button>
             ))}
 
-            {totalPages > 6 && (
-              <button
-                onClick={() => {
-                  const input = prompt("Enter page number:");
-                  const pageNum = Number(input);
-                  if (pageNum >= 1 && pageNum <= totalPages) goToPage(pageNum);
-                }}
-                className="px-3 py-1 border rounded"
-              >
-                ...
-              </button>
-            )}
+            <button
+              onClick={() => {
+                const input = prompt("Enter page number:");
+                const pageNum = Number(input);
+                if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages)
+                  onPageChange(pageNum);
+              }}
+              className="px-3 py-1 border rounded"
+            >
+              ...
+            </button>
 
             <button
-              onClick={() => goToPage(currentPage + 1)}
+              onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
               className="px-3 py-1 border rounded disabled:opacity-50"
             >
               Next
             </button>
+
+            {/* Direct page input */}
+            <div className="flex items-center gap-1 ml-4">
+              <input
+                type="number"
+                placeholder="Page"
+                value={inputPage}
+                onChange={(e) => setInputPage(e.target.value)}
+                className="border rounded p-1 w-16 text-center"
+                min={1}
+                max={totalPages}
+              />
+              <button
+                onClick={handleInputPage}
+                className="px-2 py-1 bg-blue-500 text-white rounded"
+              >
+                Go
+              </button>
+            </div>
           </div>
         </>
       )}
